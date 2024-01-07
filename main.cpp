@@ -5,57 +5,77 @@
 
 #include "mbed.h"
 
-int SEGMENTE [10] = {
-                      0b00111111,
-                      0b00000110,
-                      0b01011011,
-                      0b01001111,
-                      0b01100110,
-                      0b01101101,
-                      0b01111101,
-                      0b00000111,
-                      0b01111111,
-                      0b01101111
-                    };
+#define PAUSE 10ms
 
-PortOut segment(PortC, 0xFF);
+PortOut schrittmotor(PortC, 0b1111);
+bool stopped = false;
 
-void anzeigen(int anzahl) {
-    segment = SEGMENTE [anzahl];
+int bitfolge[4] = {
+    0b1001,
+    0b1100,
+    0b0110,
+    0b0011
+};
+
+void pause() {
+    ThisThread::sleep_for(PAUSE);
 }
 
+void stopSchrittmotor() {
+    schrittmotor = 0;
+    stopped = true;
+}
+
+void startSchrittmotor() {
+    stopped = false;
+}
+
+void a() {
+    while (true) {
+        if (!stopped) {
+            for (int i = 0; i <= 4; i++) {
+                if (!stopped) {
+                    schrittmotor = bitfolge[i];
+                    pause();   
+                }
+            }
+        }
+    }
+}
+
+void b() {
+    InterruptIn stop(PA_10);
+    stop.mode(PullDown);
+    stop.rise(&stopSchrittmotor);
+    stop.enable_irq();
+}
+
+void c() {
+    InterruptIn start(PA_6);
+    start.mode(PullDown);
+    start.rise(&startSchrittmotor);
+    start.enable_irq();
+}
 
 int main()
 {
-    DigitalOut einerstelle(PC_11);
+    schrittmotor = 0;
 
-    DigitalIn keyEntry(PA_1);
-    keyEntry.mode(PullDown);
+    //b();
+    InterruptIn stop(PA_10);
+    stop.mode(PullDown);
+    stop.rise(&stopSchrittmotor);
+    stop.enable_irq();
+    
+    //c();
+    InterruptIn start(PA_6);
+    start.mode(PullDown);
+    start.rise(&startSchrittmotor);
+    start.enable_irq();
 
-    DigitalIn keyOut(PA_6);
-    keyOut.mode(PullDown);
-
-    einerstelle = 1;
-
-    int parkingLots = 9;
-
-    anzeigen(parkingLots);
-
+    a();
+    
     while (true) {
-        if (keyEntry) {
-            if (parkingLots > 0) {
-                anzeigen(--parkingLots);
 
-                while (keyEntry);
-            }
-        }
-
-        if (keyOut) {
-            if (parkingLots < 9) {
-                anzeigen(++parkingLots);
-
-                while (keyOut);
-            }
-        }
     }
 }
