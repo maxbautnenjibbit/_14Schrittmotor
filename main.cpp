@@ -4,78 +4,109 @@
  */
 
 #include "mbed.h"
+#include "LCD.h"
 
-#define PAUSE 10ms
+lcd mylcd;
 
-PortOut schrittmotor(PortC, 0b1111);
-bool stopped = false;
-
-int bitfolge[4] = {
-    0b1001,
-    0b1100,
-    0b0110,
-    0b0011
-};
-
-void pause() {
-    ThisThread::sleep_for(PAUSE);
+void initTimer() {
+    RCC -> APB1ENR |= 0b10000;
+    TIM6 -> PSC = 31999;
+    TIM6 -> ARR = 1000;
+    TIM6 -> CNT = 0;
+    TIM6 -> SR = 0;
+    TIM6 -> CR1 = 1;
 }
 
-void stopSchrittmotor() {
-    schrittmotor = 0;
-    stopped = true;
-}
 
-void startSchrittmotor() {
-    stopped = false;
-}
+int mainA() {
+    initTimer();
 
-void a() {
+    mylcd.clear();
+    mylcd.cursorpos(0);
+
+    int second = 0;
+
     while (true) {
-        if (!stopped) {
-            for (int i = 0; i <= 4; i++) {
-                if (!stopped) {
-                    schrittmotor = bitfolge[i];
-                    pause();   
+        if (second >= 60) {
+            second = 0;
+        }
+
+        if (TIM6 -> SR == 1) {
+            TIM6 -> SR = 0;
+            second++;
+        }
+
+        mylcd.printf("%02d", second);
+        mylcd.cursorpos(0);
+    }
+}
+
+int mainB() {
+    initTimer();
+
+    int minutes = 0;
+    int seconds = 0;
+    
+    mylcd.clear();
+    mylcd.cursorpos(0);
+
+    while (true) {
+        if (TIM6 -> SR == 1) {
+            TIM6 -> SR = 0;
+            seconds++;
+        }
+
+        if (seconds >= 60) {
+            seconds = 0;
+            minutes++;
+
+            if (minutes >= 60) {
+                minutes = 0;
+            }
+        }
+
+        mylcd.printf("%02d:%02d", minutes, seconds);
+        mylcd.cursorpos(0);
+    }
+}
+
+int mainC() {
+    initTimer();
+
+    int hours = 0;
+    int minutes = 0;
+    int seconds = 0;
+    
+    mylcd.clear();
+    mylcd.cursorpos(0);
+
+    while (true) {
+        if (TIM6 -> SR == 1) {
+            TIM6 -> SR = 0;
+            seconds++;
+        }
+
+        if (seconds >= 60) {
+            seconds = 0;
+            minutes++;
+
+            if (minutes >= 60) {
+                minutes = 0;
+                hours++;
+
+                if (hours >= 24) {
+                    hours = 0;
                 }
             }
         }
+
+        mylcd.printf("%02d:%02d:%02d", hours, minutes, seconds);
+        mylcd.cursorpos(0);
     }
 }
 
-void b() {
-    InterruptIn stop(PA_10);
-    stop.mode(PullDown);
-    stop.rise(&stopSchrittmotor);
-    stop.enable_irq();
-}
-
-void c() {
-    InterruptIn start(PA_6);
-    start.mode(PullDown);
-    start.rise(&startSchrittmotor);
-    start.enable_irq();
-}
-
-int main()
-{
-    schrittmotor = 0;
-
-    //b();
-    InterruptIn stop(PA_10);
-    stop.mode(PullDown);
-    stop.rise(&stopSchrittmotor);
-    stop.enable_irq();
-    
-    //c();
-    InterruptIn start(PA_6);
-    start.mode(PullDown);
-    start.rise(&startSchrittmotor);
-    start.enable_irq();
-
-    a();
-    
-    while (true) {
-
-    }
+int main() {
+    //mainA();
+    //mainB();
+    mainC();
 }
